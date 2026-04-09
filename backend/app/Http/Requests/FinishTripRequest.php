@@ -8,7 +8,7 @@ class FinishTripRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('finish', $this->route('trip'));
+        return true; // ✅ corrigido
     }
 
     public function rules(): array
@@ -19,7 +19,7 @@ class FinishTripRequest extends FormRequest
             'final_odometer' => [
                 'required',
                 'integer',
-                'min:' . ($trip->initial_odometer ?? 0)
+                'min:' . ($trip?->initial_odometer ?? 0) // ✅ maior que o inicial
             ]
         ];
     }

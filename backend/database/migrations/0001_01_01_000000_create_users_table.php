@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('role',20)->index();
             // papeis serão: admin, operador, driver
 
-            $table->string('registration_number')->unique();
+            $table->string('registration_number')->nullable()->unique();
             $table->boolean('active')->default(true)->index();
 
             $table->rememberToken();

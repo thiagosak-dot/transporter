@@ -6,34 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('vehicles', function (Blueprint $table) {
             $table->id();
-
-            $table->string('plate',10)->unique();
+            $table->string('plate', 10)->unique();
             $table->string('brand');
             $table->string('model');
             $table->year('year');
-            $table->string('type',50);
-            // tipo: senda, van, micro-ônibus, ônibus
-
-            $table->string('patrimony_number')->unique();
-
+            $table->string('type', 50)->nullable();
+            $table->string('patrimony_number')->nullable()->unique();
             $table->integer('current_odometer')->default(0);
-
+            $table->enum('status', [
+                'available',
+                'in_trip',
+                'in_maintenance',
+                'inactive'
+            ])->default('available')->index();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['brand', 'model']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('vehicles');

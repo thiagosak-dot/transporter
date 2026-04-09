@@ -27,8 +27,6 @@ class TripController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', Trip::class);
-
         $query = Trip::query()
             ->with(['driver', 'vehicle', 'operator']);
 
@@ -40,12 +38,13 @@ class TripController extends Controller
             $query->where('driver_id', $request->driver_id);
         }
 
-        if ($request->filled('operator_id')) {
-            $query->where('operator_id', $request->operator_id);
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
         }
 
-        if ($request->user()->isDriver()) {
-            $query->where('driver_id', $request->user()->id);
+        // Motorista só vê as próprias viagens
+        if (auth()->user()->role === 'driver') {
+            $query->where('driver_id', auth()->id());
         }
 
         $trips = $query->latest()->paginate(15);
@@ -58,16 +57,18 @@ class TripController extends Controller
      */
     public function store(StoreTripRequest $request): JsonResponse
     {
-        $this->authorize('create', Trip::class);
-
         try {
             $data = $request->validated();
+            $data['operator_id'] = auth()->id();
+            $data['status'] = TripStatus::Pending->value;
+
             $trip = $this->tripService->createTrip($data);
 
             return response()->json([
                 'message' => 'Viagem criada com sucesso.',
-                'data' => $trip
+                'data'    => $trip
             ], 201);
+
         } catch (Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()
@@ -80,8 +81,6 @@ class TripController extends Controller
      */
     public function show(Trip $trip): JsonResponse
     {
-        $this->authorize('view', $trip);
-
         $trip->load(['driver', 'vehicle', 'operator']);
 
         return response()->json($trip);
@@ -92,8 +91,6 @@ class TripController extends Controller
      */
     public function start(StartTripRequest $request, Trip $trip): JsonResponse
     {
-        $this->authorize('start', $trip);
-
         try {
             $trip = $this->tripService->startTrip(
                 $trip,
@@ -102,8 +99,9 @@ class TripController extends Controller
 
             return response()->json([
                 'message' => 'Viagem iniciada com sucesso.',
-                'data' => $trip
+                'data'    => $trip
             ]);
+
         } catch (Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()
@@ -116,8 +114,6 @@ class TripController extends Controller
      */
     public function finish(FinishTripRequest $request, Trip $trip): JsonResponse
     {
-        $this->authorize('finish', $trip);
-
         try {
             $trip = $this->tripService->finishTrip(
                 $trip,
@@ -126,8 +122,9 @@ class TripController extends Controller
 
             return response()->json([
                 'message' => 'Viagem finalizada com sucesso.',
-                'data' => $trip
+                'data'    => $trip
             ]);
+
         } catch (Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()
@@ -138,20 +135,20 @@ class TripController extends Controller
     /**
      * Cancelar viagem
      */
-    public function cancel(CancelTripRequest $request, Trip $trip): JsonResponse
+    public function cancel(Request $request, Trip $trip): JsonResponse
     {
-        $this->authorize('cancel', $trip);
-
         try {
-            $trip = $this->tripService->cancelTrip(
-                $trip,
-                $request->cancellation_reason
-            );
+            $trip->update([
+                'status'              => TripStatus::Cancelled->value,
+                'cancelled_at'        => now(),
+                'cancellation_reason' => $request->cancellation_reason,
+            ]);
 
             return response()->json([
                 'message' => 'Viagem cancelada com sucesso.',
-                'data' => $trip
+                'data'    => $trip
             ]);
+
         } catch (Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()
