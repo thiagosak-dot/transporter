@@ -5,7 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
-
+use App\Http\Controllers\DashboardController;
 /*
 |--------------------------------------------------------------------------
 | Rotas públicas
@@ -23,7 +23,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
-
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index']);
     // Usuários
     Route::apiResource('users', UserController::class);
 
@@ -36,6 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     ]);
 
     Route::prefix('trips')->group(function () {
+        Route::post('/trips/{trip}/assign', [TripController::class, 'assign']);
         Route::post('/{trip}/start',  [TripController::class, 'start']);
         Route::post('/{trip}/finish', [TripController::class, 'finish']);
         Route::post('/{trip}/cancel', [TripController::class, 'cancel']);

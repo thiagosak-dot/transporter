@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { userService } from '../../services/userService'
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -13,66 +14,6 @@ import {
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../layouts/AdminLayout'
 
-// ─── Dados fictícios ──────────────────────────────────────────────────────────
-const mockUsers = [
-  {
-    id: 1,
-    name: 'Carlos Eduardo Souza',
-    email: 'carlos@viage.com',
-    role: 'driver',
-    registration_number: 'MOT-001',
-    active: true,
-    activeTrip: { destination_neighborhood: 'Vila Nova' },
-    activeVehicle: { plate: 'ABC-1234', model: 'Corolla' },
-  },
-  {
-    id: 2,
-    name: 'Marcos Antônio Lima',
-    email: 'marcos@viage.com',
-    role: 'driver',
-    registration_number: 'MOT-002',
-    active: true,
-    activeTrip: null,
-    activeVehicle: { plate: 'DEF-5678', model: 'Strada' },
-  },
-  {
-    id: 3,
-    name: 'Roberto Silva',
-    email: 'roberto@viage.com',
-    role: 'driver',
-    registration_number: 'MOT-003',
-    active: false,
-    activeTrip: null,
-    activeVehicle: null,
-  },
-  {
-    id: 4,
-    name: 'Ana Paula Ferreira',
-    email: 'ana@viage.com',
-    role: 'operator',
-    registration_number: 'OP-001',
-    active: true,
-    tripsCreated: 34,
-  },
-  {
-    id: 5,
-    name: 'João Pedro Martins',
-    email: 'joao@viage.com',
-    role: 'operator',
-    registration_number: 'OP-002',
-    active: true,
-    tripsCreated: 21,
-  },
-  {
-    id: 6,
-    name: 'Fernanda Costa',
-    email: 'fernanda@viage.com',
-    role: 'operator',
-    registration_number: 'OP-003',
-    active: false,
-    tripsCreated: 8,
-  },
-]
 
 // ─── Componentes auxiliares ───────────────────────────────────────────────────
 
@@ -438,11 +379,12 @@ function OperatorsTable({ users, onEdit, onToggle, onDelete }) {
 // ─── Modal Criar/Editar Usuário ───────────────────────────────────────────────
 function UserModal({ user, defaultRole, onClose, onSave }) {
   const isEdit = !!user
-
+  const [errors, setErrors] = useState({})
   const [form, setForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
     password: '',
+    password_confirmation: '',
     role: user?.role ?? defaultRole ?? 'driver',
     registration_number: user?.registration_number ?? '',
     active: user?.active ?? true,
@@ -454,6 +396,11 @@ function UserModal({ user, defaultRole, onClose, onSave }) {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }))
+
+    setErrors(prev => ({
+    ...prev,
+    [name]: null
+  }))
   }
 
   return (
@@ -551,8 +498,36 @@ function UserModal({ user, defaultRole, onClose, onSave }) {
               value={form.password}
               onChange={handleChange}
               placeholder={isEdit ? 'Deixe em branco para manter' : 'Mínimo 6 caracteres'}
+              className={`w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c] ${
+                errors.password ? 'border-red-500' : 'border-gray-200'
+              }`}
+            />
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.password[0]}
+                </p>
+              )}
+          </div>
+
+          {/* Confirmação de senha  */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">
+              Confirmar Senha
+            </label>
+
+            <input
+              type="password"
+              name="password_confirmation"
+              value={form.password_confirmation}
+              onChange={handleChange}
+              placeholder="Repita a senha"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]"
             />
+            {errors.password_confirmation && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.password_confirmation[0]}
+              </p>
+            )}
           </div>
 
           {/* Matrícula + Status lado a lado */}
@@ -598,7 +573,7 @@ function UserModal({ user, defaultRole, onClose, onSave }) {
             Cancelar
           </button>
           <button
-            onClick={() => onSave(form)}
+            onClick={() => onSave(form, setErrors)}
             className="px-6 py-2 bg-[#1a3a5c] text-white text-sm font-semibold rounded-lg hover:bg-[#15304d] transition shadow"
           >
             {isEdit ? 'Salvar Alterações' : 'Criar Usuário'}
@@ -637,11 +612,31 @@ function ConfirmModal({ title, message, confirmLabel, confirmColor, onConfirm, o
 
 // ─── Página Principal ─────────────────────────────────────────────────────────
 export default function Usuarios() {
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('driver')
   const [showModal, setShowModal] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  async function loadUsers() {
+    try {
+      setLoading(true)
+
+      const response = await userService.getAll()
+
+      setUsers(response.data.data || response.data)
+
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Abrir modal de criação
   function handleNew() {
@@ -656,19 +651,28 @@ export default function Usuarios() {
   }
 
   // Salvar (criar ou editar)
-  function handleSave(form) {
-    if (editingUser) {
-      setUsers(prev =>
-        prev.map(u => (u.id === editingUser.id ? { ...u, ...form } : u))
-      )
-    } else {
-      setUsers(prev => [
-        ...prev,
-        { id: Date.now(), ...form, tripsCreated: 0, activeTrip: null, activeVehicle: null },
-      ])
+  async function handleSave(form, setErrors) {
+    try {
+      if (editingUser) {
+        await userService.update(editingUser.id, form)
+      } else {
+        await userService.create(form)
+      }
+
+      await loadUsers()
+
+      setShowModal(false)
+      setEditingUser(null)
+
+    } catch (error) {
+        if (error.response?.status === 422) {
+          setErrors(error.response.data.errors)
+          return
+      }
+
+
+    console.error(error)
     }
-    setShowModal(false)
-    setEditingUser(null)
   }
 
   // Ativar / Desativar
@@ -676,16 +680,21 @@ export default function Usuarios() {
     setConfirmModal({
       title: user.active ? 'Desativar usuário?' : 'Ativar usuário?',
       message: user.active
-        ? `O usuário "${user.name}" será desativado e não poderá acessar o sistema.`
-        : `O usuário "${user.name}" será ativado novamente.`,
+        ? `Deseja desativar ${user.name}?`
+        : `Deseja ativar ${user.name}?`,
       confirmLabel: user.active ? 'Desativar' : 'Ativar',
-      confirmColor: user.active ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-500 hover:bg-green-600',
-      onConfirm: () => {
-        setUsers(prev =>
-          prev.map(u => (u.id === user.id ? { ...u, active: !u.active } : u))
-        )
+      confirmColor: user.active
+        ? 'bg-orange-500 hover:bg-orange-600'
+        : 'bg-green-500 hover:bg-green-600',
+
+      onConfirm: async () => {
+        await userService.update(user.id, {
+          active: !user.active
+        })
+
+        await loadUsers()
         setConfirmModal(null)
-      },
+      }
     })
   }
 
@@ -693,14 +702,26 @@ export default function Usuarios() {
   function handleDelete(user) {
     setConfirmModal({
       title: 'Remover usuário?',
-      message: `Tem certeza que deseja remover "${user.name}"? Esta ação não pode ser desfeita.`,
+      message: `Deseja remover ${user.name}?`,
       confirmLabel: 'Remover',
       confirmColor: 'bg-red-500 hover:bg-red-600',
-      onConfirm: () => {
-        setUsers(prev => prev.filter(u => u.id !== user.id))
+
+      onConfirm: async () => {
+        await userService.delete(user.id)
+        await loadUsers()
         setConfirmModal(null)
-      },
+      }
     })
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="p-8 text-center text-gray-500">
+          Carregando usuários...
+        </div>
+      </AdminLayout>
+    )
   }
 
   return (

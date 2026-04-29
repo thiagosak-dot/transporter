@@ -155,4 +155,25 @@ class TripController extends Controller
             ], 400);
         }
     }
+
+    public function assign(Request $request, Trip $trip)
+    {
+        try {
+            $trip = $this->tripService->assignTrip(
+                $trip,
+                $request->driver_id,
+                $request->vehicle_id
+            );
+
+            return response()->json([
+                'message' => 'Viagem atribuída com sucesso.',
+                'data' => $trip
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

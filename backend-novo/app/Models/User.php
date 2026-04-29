@@ -41,9 +41,18 @@ class User extends Authenticatable
     // Relationships
     public function vehicles()
     {
-        return $this->belongsToMany(Vehicle::class, 'vehicle_driver')
-            ->withPivot(['assigned_at', 'unassigned_at', 'active'])
-            ->withTimestamps();
+        return $this->belongsToMany(
+            Vehicle::class,
+            'vehicle_driver',
+            'driver_id',
+            'vehicle_id'
+        )
+        ->withPivot([
+            'assigned_at',
+            'unassigned_at',
+            'active'
+        ])
+        ->withTimestamps();
     }
 
     public function trips()

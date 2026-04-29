@@ -33,23 +33,65 @@ class TripService
      */
     public function assignTrip(Trip $trip, int $driverId, int $vehicleId): Trip
     {
-        if ($trip->status !== TripStatus::Pending->value) {
-            throw new Exception('Apenas viagens pendentes podem ser atribuídas.');
-        }
+        return DB::transaction(function () use ($trip, $driverId, $vehicleId) {
 
-        $vehicle = Vehicle::findOrFail($vehicleId);
+            // viagem precisa estar pendente
+            if ($trip->status !== TripStatus::Pending->value) {
+                throw new Exception('Apenas viagens pendentes podem ser atribuídas.');
+            }
 
-        if ($vehicle->status !== VehicleStatus::Available->value) {
-            throw new Exception('Veículo não está disponível.');
-        }
+            // motorista já ocupado
+            $driverBusy = Trip::where('driver_id', $driverId)
+                ->whereIn('status', [
+                    TripStatus::Assigned->value,
+                    TripStatus::InProgress->value,
+                ])
+                ->where('id', '!=', $trip->id)
+                ->exists();
 
-        $trip->update([
-            'status'     => TripStatus::Assigned->value,
-            'driver_id'  => $driverId,
-            'vehicle_id' => $vehicleId,
-        ]);
+            if ($driverBusy) {
+                throw new Exception('Motorista já possui viagem ativa.');
+            }
 
-        return $trip->fresh(['driver', 'vehicle', 'operator']);
+            // veículo precisa existir
+            $vehicle = Vehicle::findOrFail($vehicleId);
+
+            // veículo ocupado por status
+            if ($vehicle->status !== VehicleStatus::Available->value) {
+                throw new Exception('Veículo não está disponível.');
+            }
+
+            // segurança extra: veículo já vinculado em outra viagem ativa
+            $vehicleBusy = Trip::where('vehicle_id', $vehicleId)
+                ->whereIn('status', [
+                    TripStatus::Assigned->value,
+                    TripStatus::InProgress->value,
+                ])
+                ->where('id', '!=', $trip->id)
+                ->exists();
+
+            if ($vehicleBusy) {
+                throw new Exception('Veículo já está vinculado a outra viagem.');
+            }
+
+            // atribuir
+            $trip->update([
+                'status'     => TripStatus::Assigned->value,
+                'driver_id'  => $driverId,
+                'vehicle_id' => $vehicleId,
+            ]);
+
+            // opcional: já reservar veículo
+            $vehicle->update([
+                'status' => VehicleStatus::InTrip->value,
+            ]);
+
+            return $trip->fresh([
+                'driver',
+                'vehicle',
+                'operator',
+            ]);
+        });
     }
 
     /**

@@ -32,17 +32,35 @@ class Vehicle extends Model
     // Relationships
     public function drivers()
     {
-        return $this->belongsToMany(User::class, 'vehicle_driver')
-            ->withPivot(['assigned_at', 'unassigned_at', 'active'])
-            ->withTimestamps();
+        return $this->belongsToMany(
+            User::class,
+            'vehicle_driver',
+            'vehicle_id',
+            'driver_id'
+        )
+        ->withPivot([
+        'assigned_at',
+        'unassigned_at',
+        'active'
+        ])
+        ->withTimestamps();
     }
 
     public function activeDriver()
     {
-        return $this->belongsToMany(User::class, 'vehicle_driver')
-            ->wherePivot('active', true)
-            ->withPivot(['assigned_at', 'unassigned_at', 'active'])
-            ->withTimestamps();
+        return $this->belongsToMany(
+            User::class,
+            'vehicle_driver',
+            'vehicle_id',
+            'driver_id'
+        )
+        ->wherePivot('active', true)
+        ->withPivot([
+            'assigned_at',
+            'unassigned_at',
+            'active'
+        ])
+        ->withTimestamps();
     }
 
     public function trips()

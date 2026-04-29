@@ -29,8 +29,8 @@ export default function AdminLayout({ children }) {
             </svg>
           </div>
           <div>
-            <span className="text-2xl font-extrabold tracking-wide">VIAGE</span>
-            <p className="text-xs text-blue-200 -mt-1">saúde</p>
+            <span className="text-2xl font-extrabold tracking-wide">VIAGE+</span>
+            <p className="text-xs text-blue-200 -mt-1">com saúde</p>
           </div>
         </div>
 
